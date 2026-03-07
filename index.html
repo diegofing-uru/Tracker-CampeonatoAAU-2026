@@ -1046,29 +1046,27 @@ async function fetchResult(id) {
   try {
     let found = null;
 
-    // Buscar por dorsal primero (más exacto)
-    if (profile.bib) {
-      found = await searchByBib(BASE, eventId, profile.bib);
-    }
-
-    // Si no encontró por dorsal, buscar por nombre
-    if (!found && profile.name) {
-      found = await searchByName(BASE, eventId, profile.name);
-    }
+    // Buscar resultado y total de corredores en paralelo
+    let found = null;
+    const [totalCount] = await Promise.all([
+      getTotalCount(BASE, eventId),
+      (async () => {
+        if (profile.bib) found = await searchByBib(BASE, eventId, profile.bib);
+        if (!found && profile.name) found = await searchByName(BASE, eventId, profile.name);
+      })()
+    ]);
 
     if (!found) {
       showFetchMsg(id, 'warn', `No se encontró resultado con ${profile.bib ? 'dorsal '+profile.bib : ''} ${profile.name ? '/ "'+profile.name+'"' : ''}.\nVerificá el ID del evento o tu perfil.`);
       return;
     }
 
-    // Convertir tiempo: "00:23:05.000" → "23:05"
     const rawTime = found.netTime || found.gunTime || '';
     const timeFmt = convertTime(rawTime);
     const paceSecs = timeFmt ? Math.round(toSecs(timeFmt) / 5) : null;
     const paceFmt  = paceSecs ? toFmt(paceSecs) : '';
-    const total    = found._totalCount || '';
+    const total    = totalCount || '';
 
-    // Autocompletar campos
     if (timeFmt) document.getElementById('t-time-'+id).value = timeFmt;
     if (paceFmt) document.getElementById('t-pace-'+id).value = paceFmt;
     if (found.positionGeneral) document.getElementById('t-posnum-'+id).value = found.positionGeneral;
@@ -1093,30 +1091,35 @@ async function fetchResult(id) {
   }
 }
 
+async function getTotalCount(base, eventId) {
+  // Pide solo 1 resultado para obtener el totalCount real del evento completo
+  const url = `${base}/events/${eventId}/results?distance=5K&page=1&limit=1&orderBy=positionGeneral&order=ASC&search=`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.totalCount || null;
+}
+
 async function searchByBib(base, eventId, bib) {
   const url = `${base}/events/${eventId}/results?distance=5K&page=1&limit=500&orderBy=positionGeneral&order=ASC&search=${bib}`;
   const res = await fetch(url);
   if (!res.ok) return null;
   const data = await res.json();
   const found = (data.results || []).find(r => String(r.bib) === String(bib));
-  if (found) found._totalCount = data.totalCount;
   return found || null;
 }
 
 async function searchByName(base, eventId, name) {
-  // Buscar con el apellido (primera palabra del nombre ingresado como apellido, o última)
   const search = encodeURIComponent(name.split(' ')[0]);
   const url = `${base}/events/${eventId}/results?distance=5K&page=1&limit=100&orderBy=positionGeneral&order=ASC&search=${search}`;
   const res = await fetch(url);
   if (!res.ok) return null;
   const data = await res.json();
   const nameLower = name.toLowerCase();
-  // Buscar coincidencia parcial en el nombre devuelto
   const found = (data.results || []).find(r =>
     r.name.toLowerCase().includes(nameLower.split(' ')[0]) &&
     (nameLower.split(' ').length < 2 || r.name.toLowerCase().includes(nameLower.split(' ')[1] || ''))
   );
-  if (found) found._totalCount = data.totalCount;
   return found || null;
 }
 

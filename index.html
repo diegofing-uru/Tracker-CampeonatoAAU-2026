@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campeonato 2026 · Mi Registro</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #12151c;
+    --surface2: #1a1e28;
+    --border: #252a38;
+    --gold: #c9a84c;
+    --gold-light: #e8c97a;
+    --gold-dim: rgba(201,168,76,0.15);
+    --blue: #3a7bd5;
+    --blue-dim: rgba(58,123,213,0.15);
+    --green: #3ecf8e;
+    --green-dim: rgba(62,207,142,0.12);
+    --red: #e85d5d;
+    --text: #e8eaf0;
+    --text-dim: #6b7280;
+    --text-mid: #9ca3af;
+    --accent: #c9a84c;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* NOISE TEXTURE */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 0 16px 80px; }
+
+  /* HEADER */
+  header {
+    padding: 40px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .title-block h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2.8rem, 8vw, 5rem);
+    line-height: 0.9;
+    letter-spacing: 0.03em;
+    color: var(--gold);
+    text-shadow: 0 0 60px rgba(201,168,76,0.3);
+  }
+
+  .title-block h1 span {
+    display: block;
+    color: var(--text);
+    font-size: 0.55em;
+    letter-spacing: 0.12em;
+  }
+
+  .badges {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+  }
+
+  .badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    padding: 4px 10px;
+    border-radius: 3px;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+
+  .badge-gold { border-color: var(--gold); color: var(--gold); background: var(--gold-dim); }
+  .badge-blue { border-color: var(--blue); color: var(--blue); background: var(--blue-dim); }
+
+  /* STATS BAR */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-bottom: 36px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--gold), transparent);
+  }
+
+  .stat-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .stat-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    color: var(--gold);
+    line-height: 1;
+  }
+
+  .stat-sub {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    margin-top: 3px;
+  }
+
+  /* MONTH SECTIONS */
+  .month-section {
+    margin-bottom: 24px;
+  }
+
+  .month-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 0 4px;
+  }
+
+  .month-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.95rem;
+    letter-spacing: 0.25em;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+
+  .month-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--border), transparent);
+  }
+
+  /* RACE CARD */
+  .race-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    overflow: hidden;
+    transition: border-color 0.25s, transform 0.15s;
+  }
+
+  .race-card:hover { border-color: rgba(201,168,76,0.35); }
+  .race-card.completed { border-color: rgba(62,207,142,0.3); }
+  .race-card.completed::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--green);
+    border-radius: 10px 0 0 10px;
+  }
+  .race-card { position: relative; }
+  .race-card.outside { opacity: 0.5; }
+  .race-card.outside .race-name::after {
+    content: ' · FUERA DEL CAMPEONATO';
+    font-size: 0.6rem;
+    color: var(--red);
+    letter-spacing: 0.08em;
+  }
+
+  .race-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 18px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .race-date {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--gold);
+    min-width: 38px;
+    text-align: center;
+    background: var(--gold-dim);
+    padding: 5px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(201,168,76,0.25);
+    line-height: 1.2;
+  }
+
+  .race-date .day {
+    font-size: 1.2rem;
+    font-family: 'Bebas Neue', sans-serif;
+    display: block;
+    line-height: 1;
+  }
+
+  .race-name {
+    flex: 1;
+    font-weight: 500;
+    font-size: 0.92rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .race-note {
+    font-size: 0.62rem;
+    color: var(--gold);
+    letter-spacing: 0.08em;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .race-results-preview {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .preview-chip {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid;
+  }
+
+  .chip-green { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+  .chip-blue { border-color: var(--blue); color: var(--blue); background: var(--blue-dim); }
+
+  .expand-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, border-color 0.2s;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  .race-card.open .expand-icon { transform: rotate(180deg); border-color: var(--gold); color: var(--gold); }
+
+  /* EXPANDED FORM */
+  .race-form {
+    display: none;
+    padding: 0 18px 18px;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+    animation: slideDown 0.2s ease;
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .race-card.open .race-form { display: block; }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  label {
+    font-size: 0.63rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+  }
+
+  input[type="text"], input[type="number"], textarea, select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.88rem;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(201,168,76,0.1);
+  }
+
+  textarea { resize: vertical; min-height: 60px; font-size: 0.82rem; }
+
+  .pace-helper {
+    font-size: 0.67rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  button {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 9px 20px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--gold);
+    color: #0a0c10;
+  }
+
+  .btn-primary:hover { background: var(--gold-light); transform: translateY(-1px); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+
+  .btn-ghost:hover { border-color: var(--red); color: var(--red); }
+
+  .position-display {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .pos-main { font-size: 0.9rem; }
+  .pos-sep { color: var(--text-dim); font-size: 0.75rem; }
+  .pos-total { font-size: 0.75rem; color: var(--text-dim); }
+
+  /* BEST TIMES TABLE */
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 0.12em;
+    color: var(--text);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* TOP SCORES */
+  .top-scores {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 36px;
+  }
+
+  .top-scores-header {
+    padding: 14px 20px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 12px;
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .top-row {
+    padding: 12px 20px;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    transition: background 0.15s;
+    font-size: 0.85rem;
+  }
+
+  .top-row:last-child { border-bottom: none; }
+  .top-row:hover { background: var(--surface2); }
+  .top-row .race-n { font-weight: 500; font-size: 0.82rem; }
+  .top-row .time-val { font-family: 'DM Mono', monospace; color: var(--green); }
+  .top-row .pace-val { font-family: 'DM Mono', monospace; color: var(--blue); font-size: 0.78rem; }
+  .top-row .pos-val { font-family: 'DM Mono', monospace; font-size: 0.78rem; color: var(--gold); }
+
+  .empty-state {
+    padding: 32px 20px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+
+  /* PROGRESS BAR */
+  .progress-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 36px;
+  }
+
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 0.72rem;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .progress-label span:first-child { color: var(--text-mid); letter-spacing: 0.08em; text-transform: uppercase; }
+  .progress-label span:last-child { color: var(--gold); }
+
+  .progress-track {
+    height: 6px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold), var(--gold-light));
+    border-radius: 99px;
+    transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .progress-dots {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .progress-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    transition: background 0.2s;
+    title: '';
+  }
+
+  .progress-dot.done { background: var(--green); border-color: var(--green); }
+  .progress-dot.discarte { background: var(--text-dim); border-color: var(--text-dim); }
+
+  /* TOOLTIP */
+  .tooltip-wrap { position: relative; display: inline-block; }
+  .tooltip-wrap .tt {
+    visibility: hidden;
+    position: absolute;
+    bottom: 130%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.65rem;
+    white-space: nowrap;
+    font-family: 'DM Mono', monospace;
+    color: var(--text);
+    z-index: 10;
+  }
+  .tooltip-wrap:hover .tt { visibility: visible; }
+
+  /* MOBILE */
+  @media (max-width: 600px) {
+    .top-scores-header, .top-row {
+      grid-template-columns: 2fr 1fr 1fr;
+    }
+    .top-scores-header > *:last-child,
+    .top-row > *:last-child { display: none; }
+    .form-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media (max-width: 420px) {
+    .form-grid { grid-template-columns: 1fr; }
+  }
+
+  /* SCROLL */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="header-top">
+      <div class="title-block">
+        <h1><span>Mis carreras</span>Campeonato<br>2026</h1>
+      </div>
+      <div class="badges">
+        <span class="badge badge-gold">5 DESCARTES</span>
+        <span class="badge badge-blue">13 FECHAS VÁLIDAS</span>
+        <span class="badge badge-gold">INSCRIBITE EN ATLETAS.UY</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- STATS -->
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-card">
+      <div class="stat-label">Carreras</div>
+      <div class="stat-value" id="statRaces">0</div>
+      <div class="stat-sub">completadas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Mejor tiempo</div>
+      <div class="stat-value" id="statBestTime">—</div>
+      <div class="stat-sub" id="statBestTimeSub">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Mejor ritmo</div>
+      <div class="stat-value" id="statBestPace">—</div>
+      <div class="stat-sub">min/km</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Mejor posición</div>
+      <div class="stat-value" id="statBestPos">—</div>
+      <div class="stat-sub" id="statBestPosSub">—</div>
+    </div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span>Progreso del campeonato</span>
+      <span id="progressText">0 / 18 fechas</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+    <div class="progress-dots" id="progressDots"></div>
+  </div>
+
+  <!-- BEST TIMES -->
+  <div class="section-title">Mejores tiempos</div>
+  <div class="top-scores" id="topScores">
+    <div class="top-scores-header">
+      <div>Carrera</div>
+      <div>Tiempo</div>
+      <div>Ritmo</div>
+      <div>Posición</div>
+    </div>
+    <div class="empty-state" id="emptyState">Aún no registraste ninguna carrera. ¡Completá la primera fecha!</div>
+  </div>
+
+  <!-- CALENDAR -->
+  <div id="calendar"></div>
+
+</div>
+
+<script>
+const RACES = [
+  { id: 'mar01', month: 'MARZO', day: '01', name: 'Club Villa Española', note: null, outside: false },
+  { id: 'mar15', month: 'MARZO', day: '15', name: 'Santiago Vázquez', note: null, outside: false },
+  { id: 'abr12', month: 'ABRIL', day: '12', name: '8K de Florida', note: null, outside: false },
+  { id: 'may03', month: 'MAYO', day: '03', name: 'Arequita - Lavalleja', note: null, outside: false },
+  { id: 'may17', month: 'MAYO', day: '17', name: 'Polideportivo Municipio G', note: null, outside: false },
+  { id: 'may24', month: 'MAYO', day: '24', name: 'Cerro de Montevideo', note: null, outside: false },
+  { id: 'jun07', month: 'JUNIO', day: '07', name: 'Bodega Juanicó', note: null, outside: false },
+  { id: 'jun14', month: 'JUNIO', day: '14', name: 'Club Oriental de la Paz', note: null, outside: false },
+  { id: 'jun21', month: 'JUNIO', day: '21', name: 'Sauce BBC', note: null, outside: false },
+  { id: 'jul12', month: 'JULIO', day: '12', name: 'Villa Teresa', note: null, outside: false },
+  { id: 'jul26', month: 'JULIO', day: '26', name: 'Etapa AAU', note: null, outside: false },
+  { id: 'ago02', month: 'AGOSTO', day: '02', name: 'UAM - Montevideo', note: null, outside: false },
+  { id: 'ago30', month: 'AGOSTO', day: '30', name: 'Sayago - Racing', note: null, outside: false },
+  { id: 'sep13', month: 'SEPTIEMBRE', day: '13', name: 'Pérez Scremini', note: 'FUERA DEL CAMPEONATO', outside: true },
+  { id: 'sep20', month: 'SEPTIEMBRE', day: '20', name: 'Club Olimpia', note: null, outside: false },
+  { id: 'oct04', month: 'OCTUBRE', day: '04', name: 'Mercado Agrícola de Montevideo', note: null, outside: false },
+  { id: 'oct18', month: 'OCTUBRE', day: '18', name: 'Legión Entrena - Casupá', note: null, outside: false },
+  { id: 'oct24', month: 'OCTUBRE', day: '24', name: 'Santa Lucía - Canelones', note: 'SÁBADO', outside: false },
+  { id: 'nov01', month: 'NOVIEMBRE', day: '01', name: 'Club Malvín', note: null, outside: false },
+  { id: 'nov21', month: 'NOVIEMBRE', day: '21', name: 'El Auto Gris C. de la Costa', note: 'SÁBADO', outside: false },
+  { id: 'dic06', month: 'DICIEMBRE', day: '06', name: 'Aguas Corrientes', note: null, outside: false },
+];
+
+let data = JSON.parse(localStorage.getItem('campeonato2026') || '{}');
+
+function saveData() {
+  localStorage.setItem('campeonato2026', JSON.stringify(data));
+}
+
+function paceToSecs(paceStr) {
+  if (!paceStr) return null;
+  const parts = paceStr.split(':');
+  if (parts.length === 2) return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+  return null;
+}
+
+function secsToTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2,'0')}`;
+}
+
+function renderStats() {
+  const completed = RACES.filter(r => data[r.id] && data[r.id].time);
+  document.getElementById('statRaces').textContent = completed.length;
+
+  const times = completed.map(r => {
+    const t = data[r.id].time;
+    const parts = t.split(':');
+    return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+  }).filter(Boolean).sort((a,b) => a - b);
+
+  if (times.length) {
+    const best = times[0];
+    const race = completed.find(r => {
+      const t = data[r.id].time;
+      const parts = t.split(':');
+      return parseInt(parts[0]) * 60 + parseInt(parts[1]) === best;
+    });
+    document.getElementById('statBestTime').textContent = secsToTime(best);
+    document.getElementById('statBestTimeSub').textContent = race ? race.name.split(' ')[0] + '...' : '';
+  } else {
+    document.getElementById('statBestTime').textContent = '—';
+    document.getElementById('statBestTimeSub').textContent = '—';
+  }
+
+  const paces = completed.map(r => paceToSecs(data[r.id].pace)).filter(Boolean).sort((a,b) => a - b);
+  document.getElementById('statBestPace').textContent = paces.length ? secsToTime(paces[0]) : '—';
+
+  const posRatios = completed.map(r => {
+    const d = data[r.id];
+    if (d.positionNum && d.positionTotal) return { ratio: parseInt(d.positionNum) / parseInt(d.positionTotal), num: d.positionNum, total: d.positionTotal, race: r };
+    return null;
+  }).filter(Boolean).sort((a,b) => a.ratio - b.ratio);
+
+  if (posRatios.length) {
+    const best = posRatios[0];
+    document.getElementById('statBestPos').textContent = best.num;
+    document.getElementById('statBestPosSub').textContent = `de ${best.total}`;
+  } else {
+    document.getElementById('statBestPos').textContent = '—';
+    document.getElementById('statBestPosSub').textContent = '—';
+  }
+
+  // Progress
+  const total = RACES.length;
+  const done = completed.length;
+  document.getElementById('progressText').textContent = `${done} / ${total} fechas`;
+  document.getElementById('progressFill').style.width = `${(done/total)*100}%`;
+
+  const dots = document.getElementById('progressDots');
+  dots.innerHTML = RACES.map(r => {
+    const isDone = data[r.id] && data[r.id].time;
+    return `<div class="tooltip-wrap"><div class="progress-dot${isDone ? ' done' : ''}"></div><span class="tt">${r.day} ${r.month.substring(0,3)} · ${r.name}</span></div>`;
+  }).join('');
+
+  renderTopScores();
+}
+
+function renderTopScores() {
+  const completed = RACES.filter(r => data[r.id] && data[r.id].time);
+  const scores = completed.map(r => {
+    const d = data[r.id];
+    const parts = d.time.split(':');
+    const secs = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    return { race: r, d, secs };
+  }).sort((a,b) => a.secs - b.secs);
+
+  const container = document.getElementById('topScores');
+  const empty = document.getElementById('emptyState');
+
+  if (!scores.length) {
+    if (empty) empty.style.display = 'block';
+    const rows = container.querySelectorAll('.top-row');
+    rows.forEach(r => r.remove());
+    return;
+  }
+
+  if (empty) empty.style.display = 'none';
+  const existing = container.querySelectorAll('.top-row');
+  existing.forEach(r => r.remove());
+
+  scores.slice(0, 5).forEach((s, i) => {
+    const row = document.createElement('div');
+    row.className = 'top-row';
+    const pos = s.d.positionNum && s.d.positionTotal ? `${s.d.positionNum}/${s.d.positionTotal}` : '—';
+    row.innerHTML = `
+      <div class="race-n">${i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : ''}${s.race.name}</div>
+      <div class="time-val">${s.d.time}</div>
+      <div class="pace-val">${s.d.pace || '—'}</div>
+      <div class="pos-val">${pos}</div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function toggleCard(id) {
+  const card = document.getElementById('card-' + id);
+  card.classList.toggle('open');
+}
+
+function saveRace(id) {
+  const time = document.getElementById('inp-time-' + id).value.trim();
+  const pace = document.getElementById('inp-pace-' + id).value.trim();
+  const posNum = document.getElementById('inp-posnum-' + id).value.trim();
+  const posTotal = document.getElementById('inp-postotal-' + id).value.trim();
+  const notes = document.getElementById('inp-notes-' + id).value.trim();
+
+  data[id] = { time, pace, positionNum: posNum, positionTotal: posTotal, notes };
+  saveData();
+  renderCalendar();
+  renderStats();
+
+  const card = document.getElementById('card-' + id);
+  card.classList.remove('open');
+}
+
+function deleteRace(id) {
+  if (confirm('¿Borrar el registro de esta carrera?')) {
+    delete data[id];
+    saveData();
+    renderCalendar();
+    renderStats();
+  }
+}
+
+function calcPaceFromTime(id) {
+  const timeEl = document.getElementById('inp-time-' + id);
+  const paceEl = document.getElementById('inp-pace-' + id);
+  const helpEl = document.getElementById('pace-help-' + id);
+  const timeStr = timeEl.value.trim();
+  if (timeStr.includes(':')) {
+    const parts = timeStr.split(':');
+    const totalSecs = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    const paceSecs = Math.round(totalSecs / 5);
+    const paceStr = secsToTime(paceSecs);
+    paceEl.value = paceStr;
+    if (helpEl) helpEl.textContent = `→ ${paceStr} min/km calculado automáticamente`;
+  }
+}
+
+function renderCalendar() {
+  const months = [...new Set(RACES.map(r => r.month))];
+  const cal = document.getElementById('calendar');
+  cal.innerHTML = '';
+
+  months.forEach(month => {
+    const races = RACES.filter(r => r.month === month);
+    const sec = document.createElement('div');
+    sec.className = 'month-section';
+    sec.innerHTML = `<div class="month-header"><span class="month-name">${month}</span><div class="month-line"></div></div>`;
+
+    races.forEach(race => {
+      const d = data[race.id] || {};
+      const hasData = d.time;
+      const card = document.createElement('div');
+      card.className = `race-card${hasData ? ' completed' : ''}${race.outside ? ' outside' : ''}`;
+      card.id = 'card-' + race.id;
+
+      const previewHtml = hasData ? `
+        <div class="race-results-preview">
+          <span class="preview-chip chip-green">${d.time}</span>
+          ${d.pace ? `<span class="preview-chip chip-blue">${d.pace}/km</span>` : ''}
+          ${d.positionNum ? `<span class="preview-chip chip-blue">${d.positionNum}/${d.positionTotal}</span>` : ''}
+        </div>
+      ` : '';
+
+      const noteHtml = race.note && !race.outside ? `<span class="race-note">${race.note}</span>` : '';
+
+      card.innerHTML = `
+        <div class="race-header" onclick="toggleCard('${race.id}')">
+          <div class="race-date"><span class="day">${race.day}</span>${race.month.substring(0,3)}</div>
+          <div style="flex:1">
+            <div class="race-name${race.outside ? ' outside-name' : ''}">${race.name}</div>
+            ${noteHtml}
+          </div>
+          ${previewHtml}
+          <div class="expand-icon">▾</div>
+        </div>
+        <div class="race-form">
+          <div class="form-grid">
+            <div class="field">
+              <label>Tiempo total (mm:ss)</label>
+              <input type="text" id="inp-time-${race.id}" value="${d.time || ''}" placeholder="23:05" oninput="calcPaceFromTime('${race.id}')">
+            </div>
+            <div class="field">
+              <label>Ritmo (mm:ss / km)</label>
+              <input type="text" id="inp-pace-${race.id}" value="${d.pace || ''}" placeholder="4:37">
+              <div class="pace-helper" id="pace-help-${race.id}">Se calcula al ingresar el tiempo total</div>
+            </div>
+            <div class="field">
+              <label>Tu posición</label>
+              <input type="number" id="inp-posnum-${race.id}" value="${d.positionNum || ''}" placeholder="11" min="1">
+            </div>
+            <div class="field">
+              <label>Total participantes</label>
+              <input type="number" id="inp-postotal-${race.id}" value="${d.positionTotal || ''}" placeholder="528" min="1">
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:14px">
+            <label>Notas (sensaciones, clima, etc.)</label>
+            <textarea id="inp-notes-${race.id}" placeholder="Buenas condiciones, pista rápida...">${d.notes || ''}</textarea>
+          </div>
+          <div class="form-actions">
+            ${hasData ? `<button class="btn-ghost" onclick="deleteRace('${race.id}')">Borrar</button>` : ''}
+            <button class="btn-primary" onclick="saveRace('${race.id}')">Guardar resultado</button>
+          </div>
+        </div>
+      `;
+      sec.appendChild(card);
+    });
+
+    cal.appendChild(sec);
+  });
+}
+
+renderCalendar();
+renderStats();
+</script>
+</body>
+</html>

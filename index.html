@@ -213,6 +213,53 @@ canvas.linechart{width:100%!important;height:100%!important}
 .export-btn:active{background:var(--s2);border-color:var(--gold);color:var(--gold)}
 .export-btn .icon{font-size:1.1rem}
 
+/* ── PROFILE ── */
+.profile-card{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius);padding:18px 16px;
+  margin-bottom:16px;display:flex;flex-direction:column;gap:12px;
+}
+.how-step{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:12px 0;border-bottom:1px solid var(--border);
+  font-size:0.84rem;color:var(--text2);line-height:1.5;
+}
+.how-num{
+  font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1.1rem;
+  color:var(--gold);min-width:22px;text-align:center;margin-top:1px;
+}
+
+/* ── API FETCH ── */
+.fetch-zone{
+  background:var(--s2);border:1px dashed var(--blue);
+  border-radius:var(--radius-s);padding:14px;margin-bottom:10px;
+}
+.fetch-zone-title{
+  font-family:'IBM Plex Mono',monospace;font-size:0.62rem;
+  letter-spacing:0.1em;text-transform:uppercase;color:var(--blue);
+  margin-bottom:10px;display:flex;align-items:center;gap:6px;
+}
+.fetch-zone-title::before{content:'⚡';font-size:0.8rem}
+.btn-fetch{
+  width:100%;background:var(--blue-bg);border:1px solid rgba(91,141,238,0.4);
+  border-radius:var(--radius-s);padding:11px;
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;
+  font-size:0.85rem;letter-spacing:0.08em;text-transform:uppercase;
+  color:var(--blue);cursor:pointer;transition:all 0.15s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-fetch:active{background:rgba(91,141,238,0.2)}
+.btn-fetch.loading{opacity:0.7;pointer-events:none}
+.fetch-result{
+  margin-top:10px;padding:10px 12px;
+  background:var(--bg);border:1px solid var(--border2);
+  border-radius:var(--radius-s);font-family:'IBM Plex Mono',monospace;
+  font-size:0.72rem;line-height:1.6;
+}
+.fetch-result.ok{border-color:var(--teal-bd);color:var(--teal)}
+.fetch-result.err{border-color:var(--red-bd);color:var(--red)}
+.fetch-result.warn{border-color:var(--orange-bd);color:var(--orange)}
+
 /* ── CALENDAR ── */
 .month-block{margin-bottom:8px}
 .month-label{display:flex;align-items:center;gap:10px;padding:14px 16px 8px}
@@ -355,6 +402,7 @@ canvas.linechart{width:100%!important;height:100%!important}
     <nav class="desktop-nav" style="display:none">
       <button class="desktop-nav-btn active" onclick="showPage('stats',this)">📊 Stats</button>
       <button class="desktop-nav-btn" onclick="showPage('calendar',this)">📅 Calendario</button>
+      <button class="desktop-nav-btn" onclick="showPage('profile',this)">⚙️ Perfil</button>
     </nav>
   </div>
 </header>
@@ -366,6 +414,9 @@ canvas.linechart{width:100%!important;height:100%!important}
   </button>
   <button class="nav-btn" id="nav-calendar" onclick="showPage('calendar',this)">
     <span class="nav-icon">📅</span>Calendario
+  </button>
+  <button class="nav-btn" id="nav-profile" onclick="showPage('profile',this)">
+    <span class="nav-icon">⚙️</span>Perfil
   </button>
 </nav>
 
@@ -445,7 +496,45 @@ canvas.linechart{width:100%!important;height:100%!important}
   </div>
 </div>
 
-<!-- ═══ PAGE CALENDAR ═══ -->
+<!-- ═══ PAGE PROFILE ═══ -->
+<div class="page page-profile" id="page-profile">
+  <div class="section">
+
+    <div class="sec-title">Mi perfil</div>
+    <div class="profile-card">
+      <div class="field" style="margin-bottom:12px">
+        <label>Tu nombre completo (como figura en los resultados)</label>
+        <input type="text" id="prof-name" placeholder="Ej: Juan Pérez García" autocomplete="name">
+        <span class="hint">Se usa para buscar tus resultados automáticamente</span>
+      </div>
+      <div class="field" style="margin-bottom:16px">
+        <label>Tu número de dorsal (alternativa al nombre)</label>
+        <input type="number" id="prof-bib" placeholder="Ej: 1523" inputmode="numeric">
+        <span class="hint">Podés usar nombre o dorsal, o ambos</span>
+      </div>
+      <button class="btn btn-save" style="width:100%" onclick="saveProfile()">Guardar perfil</button>
+      <div id="prof-saved" style="display:none;text-align:center;margin-top:10px;font-size:0.78rem;color:var(--teal);font-family:'IBM Plex Mono',monospace">✓ Perfil guardado</div>
+    </div>
+
+    <div class="sec-title" style="margin-top:24px">Cómo usar la integración</div>
+    <div class="profile-card" style="gap:0">
+      <div class="how-step"><span class="how-num">1</span><span>Guardá tu nombre o dorsal arriba</span></div>
+      <div class="how-step"><span class="how-num">2</span><span>Cuando salgan los resultados de una carrera, abrí <strong style="color:var(--text)">atletas.uy/results</strong> y copiá el ID del evento de la URL</span></div>
+      <div class="how-step"><span class="how-num">3</span><span>Pegá ese ID en el campo de la carrera en Calendario y tocá <strong style="color:var(--teal)">Buscar resultado</strong></span></div>
+      <div class="how-step" style="border:none"><span class="how-num">4</span><span>El tiempo, ritmo y posición se completan solos ✓</span></div>
+    </div>
+
+    <div class="sec-title" style="margin-top:24px">¿Dónde encuentro el ID del evento?</div>
+    <div class="profile-card">
+      <p style="font-size:0.82rem;color:var(--text2);line-height:1.6">Entrá a <strong style="color:var(--gold)">atletas.uy/results</strong>, seleccioná la carrera y fijate en la URL del navegador. Va a tener un formato así:</p>
+      <div style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:0.68rem;color:var(--text2);word-break:break-all">
+        .../events/<strong style="color:var(--gold)">y1gl3zaxq52yjl3x8mmhx3bl</strong>/results
+      </div>
+      <p style="font-size:0.78rem;color:var(--text3);margin-top:8px">La parte resaltada en dorado es el ID que tenés que copiar.</p>
+    </div>
+
+  </div>
+</div>
 <div class="page page-calendar" id="page-calendar">
   <div id="cal-root"></div>
 </div>
@@ -610,6 +699,17 @@ function buildRaceCard(race) {
         <span class="skip-toggle-label">No participé en esta carrera</span>
       </label>
       <div id="form-fields-${race.id}" ${isSkipped ? 'style="opacity:0.35;pointer-events:none"' : ''}>
+        <div class="fetch-zone">
+          <div class="fetch-zone-title">Autocompletar desde atletas.uy</div>
+          <div class="field" style="margin-bottom:8px">
+            <label>ID del evento (de la URL de resultados)</label>
+            <input type="text" id="t-evid-${race.id}" value="${d.eventId||''}" placeholder="y1gl3zaxq52yjl3x8mmhx3bl" autocomplete="off" autocorrect="off" spellcheck="false">
+          </div>
+          <button class="btn-fetch" id="btn-fetch-${race.id}" onclick="fetchResult('${race.id}')">
+            <span>🔍</span> Buscar mi resultado
+          </button>
+          <div id="fetch-msg-${race.id}" style="display:none" class="fetch-result"></div>
+        </div>
         <div class="form-row">
           <div class="field">
             <label>Tiempo total</label>
@@ -671,10 +771,11 @@ function saveRace(id) {
   const posNum  = document.getElementById('t-posnum-'+id)?.value.trim();
   const posTotal= document.getElementById('t-postot-'+id)?.value.trim();
   const notes   = document.getElementById('t-notes-'+id)?.value.trim();
+  const eventId = document.getElementById('t-evid-'+id)?.value.trim();
 
   store[id] = skipped
-    ? { skipped: true, notes }
-    : { time, pace, posNum, posTotal, notes };
+    ? { skipped: true, notes, eventId }
+    : { time, pace, posNum, posTotal, notes, eventId };
   save();
 
   const btn = document.querySelector(`#card-${id} .btn-save`);
@@ -899,7 +1000,151 @@ function exportCSV() {
   a.click(); URL.revokeObjectURL(url);
 }
 
+// ── PROFILE ───────────────────────────────────────────────────────────
+function loadProfile() {
+  const p = JSON.parse(localStorage.getItem('camp26profile') || '{}');
+  if (p.name) document.getElementById('prof-name').value = p.name;
+  if (p.bib)  document.getElementById('prof-bib').value  = p.bib;
+}
+
+function saveProfile() {
+  const name = document.getElementById('prof-name').value.trim();
+  const bib  = document.getElementById('prof-bib').value.trim();
+  localStorage.setItem('camp26profile', JSON.stringify({ name, bib }));
+  const msg = document.getElementById('prof-saved');
+  msg.style.display = 'block';
+  setTimeout(() => msg.style.display = 'none', 2000);
+}
+
+function getProfile() {
+  return JSON.parse(localStorage.getItem('camp26profile') || '{}');
+}
+
+// ── API FETCH ─────────────────────────────────────────────────────────
+async function fetchResult(id) {
+  const profile = getProfile();
+  const eventId = document.getElementById('t-evid-'+id)?.value.trim();
+  const btn     = document.getElementById('btn-fetch-'+id);
+  const msgEl   = document.getElementById('fetch-msg-'+id);
+
+  // Validaciones
+  if (!eventId) {
+    showFetchMsg(id, 'err', 'Ingresá el ID del evento primero');
+    return;
+  }
+  if (!profile.name && !profile.bib) {
+    showFetchMsg(id, 'warn', 'Configurá tu nombre o dorsal en la pestaña Perfil ⚙️');
+    return;
+  }
+
+  btn.classList.add('loading');
+  btn.innerHTML = '<span>⏳</span> Buscando...';
+  msgEl.style.display = 'none';
+
+  const BASE = 'https://rrj3p512a6.execute-api.sa-east-1.amazonaws.com';
+
+  try {
+    let found = null;
+
+    // Buscar por dorsal primero (más exacto)
+    if (profile.bib) {
+      found = await searchByBib(BASE, eventId, profile.bib);
+    }
+
+    // Si no encontró por dorsal, buscar por nombre
+    if (!found && profile.name) {
+      found = await searchByName(BASE, eventId, profile.name);
+    }
+
+    if (!found) {
+      showFetchMsg(id, 'warn', `No se encontró resultado con ${profile.bib ? 'dorsal '+profile.bib : ''} ${profile.name ? '/ "'+profile.name+'"' : ''}.\nVerificá el ID del evento o tu perfil.`);
+      return;
+    }
+
+    // Convertir tiempo: "00:23:05.000" → "23:05"
+    const rawTime = found.netTime || found.gunTime || '';
+    const timeFmt = convertTime(rawTime);
+    const paceSecs = timeFmt ? Math.round(toSecs(timeFmt) / 5) : null;
+    const paceFmt  = paceSecs ? toFmt(paceSecs) : '';
+    const total    = found._totalCount || '';
+
+    // Autocompletar campos
+    if (timeFmt) document.getElementById('t-time-'+id).value = timeFmt;
+    if (paceFmt) document.getElementById('t-pace-'+id).value = paceFmt;
+    if (found.positionGeneral) document.getElementById('t-posnum-'+id).value = found.positionGeneral;
+    if (total) document.getElementById('t-postot-'+id).value = total;
+
+    showFetchMsg(id, 'ok',
+      `✓ Encontrado: ${found.name}\n` +
+      `  Tiempo: ${timeFmt}  ·  Ritmo: ${paceFmt}/km\n` +
+      `  Pos. general: ${found.positionGeneral} de ${total}`
+    );
+
+    // Guardar eventId en el store
+    if (!store[id]) store[id] = {};
+    store[id].eventId = eventId;
+    save();
+
+  } catch(e) {
+    showFetchMsg(id, 'err', 'Error al conectar con la API.\nVerificá que tenés internet.');
+  } finally {
+    btn.classList.remove('loading');
+    btn.innerHTML = '<span>🔍</span> Buscar mi resultado';
+  }
+}
+
+async function searchByBib(base, eventId, bib) {
+  const url = `${base}/events/${eventId}/results?distance=5K&page=1&limit=500&orderBy=positionGeneral&order=ASC&search=${bib}`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const data = await res.json();
+  const found = (data.results || []).find(r => String(r.bib) === String(bib));
+  if (found) found._totalCount = data.totalCount;
+  return found || null;
+}
+
+async function searchByName(base, eventId, name) {
+  // Buscar con el apellido (primera palabra del nombre ingresado como apellido, o última)
+  const search = encodeURIComponent(name.split(' ')[0]);
+  const url = `${base}/events/${eventId}/results?distance=5K&page=1&limit=100&orderBy=positionGeneral&order=ASC&search=${search}`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const data = await res.json();
+  const nameLower = name.toLowerCase();
+  // Buscar coincidencia parcial en el nombre devuelto
+  const found = (data.results || []).find(r =>
+    r.name.toLowerCase().includes(nameLower.split(' ')[0]) &&
+    (nameLower.split(' ').length < 2 || r.name.toLowerCase().includes(nameLower.split(' ')[1] || ''))
+  );
+  if (found) found._totalCount = data.totalCount;
+  return found || null;
+}
+
+function convertTime(raw) {
+  // "00:23:05.000" → "23:05"
+  if (!raw) return '';
+  const clean = raw.split('.')[0]; // quitar milisegundos
+  const parts = clean.split(':');
+  if (parts.length === 3) {
+    const h = parseInt(parts[0]);
+    const m = parseInt(parts[1]);
+    const s = parseInt(parts[2]);
+    const totalMins = h * 60 + m;
+    return `${totalMins}:${String(s).padStart(2,'0')}`;
+  }
+  return clean;
+}
+
+function showFetchMsg(id, type, text) {
+  const el = document.getElementById('fetch-msg-'+id);
+  el.className = `fetch-result ${type}`;
+  el.style.display = 'block';
+  el.style.whiteSpace = 'pre-line';
+  el.textContent = text;
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────
+loadProfile();
 buildCalendar();
 renderStats();
 window.addEventListener('resize', renderStats);

@@ -400,22 +400,22 @@ canvas.linechart{width:100%!important;height:100%!important}
       <span class="hbadge">18 FECHAS</span>
     </div>
     <nav class="desktop-nav" style="display:none">
-      <button class="desktop-nav-btn active" onclick="showPage('stats',this)">📊 Stats</button>
-      <button class="desktop-nav-btn" onclick="showPage('calendar',this)">📅 Calendario</button>
-      <button class="desktop-nav-btn" onclick="showPage('profile',this)">⚙️ Perfil</button>
+      <button class="desktop-nav-btn active" onclick="showPage('stats')">📊 Stats</button>
+      <button class="desktop-nav-btn" onclick="showPage('calendar')">📅 Calendario</button>
+      <button class="desktop-nav-btn" onclick="showPage('profile')">⚙️ Perfil</button>
     </nav>
   </div>
 </header>
 
 <!-- BOTTOM NAV -->
 <nav class="bottom-nav">
-  <button class="nav-btn active" id="nav-stats" onclick="showPage('stats',this)">
+  <button class="nav-btn active" id="nav-stats" onclick="showPage('stats')">
     <span class="nav-icon">📊</span>Stats
   </button>
-  <button class="nav-btn" id="nav-calendar" onclick="showPage('calendar',this)">
+  <button class="nav-btn" id="nav-calendar" onclick="showPage('calendar')">
     <span class="nav-icon">📅</span>Calendario
   </button>
-  <button class="nav-btn" id="nav-profile" onclick="showPage('profile',this)">
+  <button class="nav-btn" id="nav-profile" onclick="showPage('profile')">
     <span class="nav-icon">⚙️</span>Perfil
   </button>
 </nav>
@@ -630,14 +630,22 @@ const autoPace = id => {
 };
 
 // ── PAGES ─────────────────────────────────────────────────────────────
-function showPage(name, btn) {
+function showPage(name) {
+  // Ocultar todas las páginas
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-'+name).classList.add('active');
+  const target = document.getElementById('page-'+name);
+  if (target) target.classList.add('active');
+
+  // Sincronizar nav móvil
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   const mBtn = document.getElementById('nav-'+name);
   if (mBtn) mBtn.classList.add('active');
-  document.querySelectorAll('.desktop-nav-btn').forEach(b => b.classList.remove('active'));
-  if (btn?.classList.contains('desktop-nav-btn')) btn.classList.add('active');
+
+  // Sincronizar nav desktop
+  document.querySelectorAll('.desktop-nav-btn').forEach(b => {
+    const matches = b.getAttribute('onclick')?.includes(`'${name}'`);
+    b.classList.toggle('active', !!matches);
+  });
 }
 
 // ── CALENDAR ──────────────────────────────────────────────────────────
@@ -1044,8 +1052,6 @@ async function fetchResult(id) {
   const BASE = 'https://rrj3p512a6.execute-api.sa-east-1.amazonaws.com';
 
   try {
-    let found = null;
-
     // Buscar resultado y total de corredores en paralelo
     let found = null;
     const [totalCount] = await Promise.all([

@@ -683,8 +683,8 @@ canvas.linechart{width:100%!important;height:100%!important}
       <span>Mis Carreras</span>Campeonato 2026
     </div>
     <div class="header-badges">
-      <span class="hbadge">5K</span>
-      <span class="hbadge">18 FECHAS</span>
+      <span class="hbadge">5K · 10K</span>
+      <span class="hbadge">20 FECHAS</span>
       <span class="sync-badge" id="sync-badge">☁ SYNC</span>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
@@ -727,7 +727,7 @@ canvas.linechart{width:100%!important;height:100%!important}
       <div class="stat-tile">
         <div class="lbl">Completadas</div>
         <div class="val" id="s-total">0</div>
-        <div class="sub">de 18 fechas</div>
+        <div class="sub">de 20 fechas</div>
       </div>
       <div class="stat-tile">
         <div class="lbl">Mejor tiempo</div>
@@ -832,6 +832,13 @@ canvas.linechart{width:100%!important;height:100%!important}
     <div class="sec-title">Mi perfil de corredor</div>
     <div class="profile-card">
       <div class="field" style="margin-bottom:12px">
+        <label>Distancia que corrés</label>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button id="dist-5k" onclick="setDistance('5K')" class="btn" style="flex:1;font-size:0.9rem">🏃 5K</button>
+          <button id="dist-10k" onclick="setDistance('10K')" class="btn btn-save" style="flex:1;font-size:0.9rem;background:var(--s3);color:var(--text2)">🏃 10K</button>
+        </div>
+        <span class="hint">Afecta el cálculo de ritmo y la búsqueda en atletas.uy</span>
+      </div>
         <label>Tu nombre completo (como figura en los resultados)</label>
         <input type="text" id="prof-name" placeholder="Ej: Juan Pérez García" autocomplete="name">
         <span class="hint">Se usa para buscar tus resultados automáticamente</span>
@@ -955,15 +962,21 @@ const toSecs = s => {
 };
 const toFmt = s => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
 
+const getDistanceKm = () => {
+  const p = JSON.parse(localStorage.getItem('camp26profile') || '{}');
+  return p.distance === '10K' ? 10 : 5;
+};
+
 const autoPace = id => {
   const tEl = document.getElementById('t-time-'+id);
   const pEl = document.getElementById('t-pace-'+id);
   const hEl = document.getElementById('t-hint-'+id);
   const secs = toSecs(tEl?.value);
+  const km = getDistanceKm();
   if (secs) {
-    const ps = Math.round(secs / 5);
+    const ps = Math.round(secs / km);
     pEl.value = toFmt(ps);
-    if (hEl) hEl.textContent = `→ ${toFmt(ps)} min/km auto-calculado`;
+    if (hEl) hEl.textContent = `→ ${toFmt(ps)} min/km auto-calculado (${km}K)`;
   }
 };
 
@@ -1018,6 +1031,7 @@ function buildRaceCard(race) {
     chips += `<span class="chip chip-teal">${d.time}</span>`;
     if (d.pace) chips += `<span class="chip chip-blue">${d.pace}/km</span>`;
     if (d.posNum && d.posTotal) chips += `<span class="chip chip-gold">${d.posNum}/${d.posTotal}</span>`;
+    if (d.posGenNum && d.posGenTotal) chips += `<span class="chip chip-orange">${d.posGenNum}/${d.posGenTotal} ♀♂</span>`;
   }
   if (isSkipped && !hasData) chips += `<span class="chip chip-orange">No participé</span>`;
   if (race.note && !race.out) chips += `<span class="chip chip-gold">${race.note}</span>`;
@@ -1070,12 +1084,22 @@ function buildRaceCard(race) {
         </div>
         <div class="form-row">
           <div class="field">
-            <label>Tu posición</label>
-            <input type="number" id="t-posnum-${race.id}" value="${d.posNum||''}" placeholder="11" inputmode="numeric" min="1">
+            <label>Tu posición general</label>
+            <input type="number" id="t-posnum-${race.id}" value="${d.posNum||''}" placeholder="102" inputmode="numeric" min="1">
           </div>
           <div class="field">
-            <label>Total corredores</label>
-            <input type="number" id="t-postot-${race.id}" value="${d.posTotal||''}" placeholder="528" inputmode="numeric" min="1">
+            <label>Total general</label>
+            <input type="number" id="t-postot-${race.id}" value="${d.posTotal||''}" placeholder="820" inputmode="numeric" min="1">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>Pos. por género</label>
+            <input type="number" id="t-posgennum-${race.id}" value="${d.posGenNum||''}" placeholder="33" inputmode="numeric" min="1">
+          </div>
+          <div class="field">
+            <label>Total género</label>
+            <input type="number" id="t-posgentot-${race.id}" value="${d.posGenTotal||''}" placeholder="406" inputmode="numeric" min="1">
           </div>
         </div>
         <div class="form-row single">
@@ -1111,17 +1135,19 @@ function toggleCard(id) {
 }
 
 function saveRace(id) {
-  const skipped = document.getElementById('t-skip-'+id)?.checked;
-  const time    = document.getElementById('t-time-'+id)?.value.trim();
-  const pace    = document.getElementById('t-pace-'+id)?.value.trim();
-  const posNum  = document.getElementById('t-posnum-'+id)?.value.trim();
-  const posTotal= document.getElementById('t-postot-'+id)?.value.trim();
-  const notes   = document.getElementById('t-notes-'+id)?.value.trim();
-  const eventId = document.getElementById('t-evid-'+id)?.value.trim();
+  const skipped   = document.getElementById('t-skip-'+id)?.checked;
+  const time      = document.getElementById('t-time-'+id)?.value.trim();
+  const pace      = document.getElementById('t-pace-'+id)?.value.trim();
+  const posNum    = document.getElementById('t-posnum-'+id)?.value.trim();
+  const posTotal  = document.getElementById('t-postot-'+id)?.value.trim();
+  const posGenNum = document.getElementById('t-posgennum-'+id)?.value.trim();
+  const posGenTotal = document.getElementById('t-posgentot-'+id)?.value.trim();
+  const notes     = document.getElementById('t-notes-'+id)?.value.trim();
+  const eventId   = document.getElementById('t-evid-'+id)?.value.trim();
 
   store[id] = skipped
     ? { skipped: true, notes, eventId }
-    : { time, pace, posNum, posTotal, notes, eventId };
+    : { time, pace, posNum, posTotal, posGenNum, posGenTotal, notes, eventId };
   save();
 
   const btn = document.querySelector(`#card-${id} .btn-save`);
@@ -1308,12 +1334,13 @@ function renderStats() {
   topRows.innerHTML = times.slice(0,5).map((t,i) => {
     const d = store[t.r.id];
     const pos = d.posNum && d.posTotal ? `${d.posNum}/${d.posTotal}` : '';
+    const posGen = d.posGenNum && d.posGenTotal ? `${d.posGenNum}/${d.posGenTotal}` : '';
     return `
       <div class="top-row">
         <div class="top-rank ${medals[i]}">${labels[i]}</div>
         <div>
           <div class="top-name">${t.r.name}</div>
-          ${pos ? `<div style="font-size:0.68rem;color:var(--text3);font-family:'IBM Plex Mono',monospace;margin-top:2px">pos. ${pos}</div>` : ''}
+          ${pos ? `<div style="font-size:0.68rem;color:var(--text3);font-family:'IBM Plex Mono',monospace;margin-top:2px">pos. ${pos}${posGen ? ' · ♀♂ '+posGen : ''}</div>` : ''}
         </div>
         <div class="top-meta">
           <span class="top-time">${toFmt(t.secs)}</span>
@@ -1325,15 +1352,16 @@ function renderStats() {
 
 // ── EXPORT CSV ────────────────────────────────────────────────────────
 function exportCSV() {
-  const rows = [['Fecha','Carrera','Tiempo','Ritmo (min/km)','Posicion','Total corredores','Notas','Estado']];
+  const rows = [['Fecha','Carrera','Tiempo','Ritmo (min/km)','Posicion General','Total general','Pos. Género','Total Género','Notas','Estado']];
   RACES.forEach(r => {
     const d = store[r.id];
-    if (!d) { rows.push([`${r.day} ${r.month}`, r.name,'','','','','','Pendiente']); return; }
-    if (d.skipped) { rows.push([`${r.day} ${r.month}`, r.name,'','','','', d.notes||'','No participé']); return; }
+    if (!d) { rows.push([`${r.day} ${r.month}`, r.name,'','','','','','','','Pendiente']); return; }
+    if (d.skipped) { rows.push([`${r.day} ${r.month}`, r.name,'','','','','','', d.notes||'','No participé']); return; }
     rows.push([
       `${r.day} ${r.month}`, r.name,
       d.time||'', d.pace||'',
       d.posNum||'', d.posTotal||'',
+      d.posGenNum||'', d.posGenTotal||'',
       (d.notes||'').replace(/,/g,';'),
       d.time ? 'Completada' : 'Pendiente'
     ]);
@@ -1351,6 +1379,25 @@ function loadProfile() {
   const p = JSON.parse(localStorage.getItem('camp26profile') || '{}');
   if (p.name) document.getElementById('prof-name').value = p.name;
   if (p.bib)  document.getElementById('prof-bib').value  = p.bib;
+  setDistance(p.distance || '5K', false);
+}
+
+function setDistance(dist, doSave=true) {
+  const btn5  = document.getElementById('dist-5k');
+  const btn10 = document.getElementById('dist-10k');
+  if (!btn5 || !btn10) return;
+  if (dist === '10K') {
+    btn10.style.background = 'var(--gold)'; btn10.style.color = '#0d0f14';
+    btn5.style.background  = 'var(--s3)';   btn5.style.color  = 'var(--text2)';
+  } else {
+    btn5.style.background  = 'var(--gold)'; btn5.style.color  = '#0d0f14';
+    btn10.style.background = 'var(--s3)';   btn10.style.color = 'var(--text2)';
+  }
+  if (doSave) {
+    const p = JSON.parse(localStorage.getItem('camp26profile') || '{}');
+    p.distance = dist;
+    localStorage.setItem('camp26profile', JSON.stringify(p));
+  }
 }
 
 function saveProfile() {
@@ -1396,15 +1443,16 @@ async function fetchResult(id) {
   msgEl.style.display = 'none';
 
   const BASE = 'https://rrj3p512a6.execute-api.sa-east-1.amazonaws.com';
+  const distParam = getDistanceKm() === 10 ? '10K' : '5K';
 
   try {
     // Buscar resultado y total de corredores en paralelo
     let found = null;
     const [totalCount] = await Promise.all([
-      getTotalCount(BASE, eventId),
+      getTotalCount(BASE, eventId, distParam),
       (async () => {
-        if (profile.bib) found = await searchByBib(BASE, eventId, profile.bib);
-        if (!found && profile.name) found = await searchByName(BASE, eventId, profile.name);
+        if (profile.bib) found = await searchByBib(BASE, eventId, profile.bib, distParam);
+        if (!found && profile.name) found = await searchByName(BASE, eventId, profile.name, distParam);
       })()
     ]);
 
@@ -1415,19 +1463,27 @@ async function fetchResult(id) {
 
     const rawTime = found.netTime || found.gunTime || '';
     const timeFmt = convertTime(rawTime);
-    const paceSecs = timeFmt ? Math.round(toSecs(timeFmt) / 5) : null;
+    const km = getDistanceKm();
+    const paceSecs = timeFmt ? Math.round(toSecs(timeFmt) / km) : null;
     const paceFmt  = paceSecs ? toFmt(paceSecs) : '';
     const total    = totalCount || '';
+
+    // Posición por género
+    const posGen    = found.positionGender || '';
+    const totalGen  = found.totalGender || '';
 
     if (timeFmt) document.getElementById('t-time-'+id).value = timeFmt;
     if (paceFmt) document.getElementById('t-pace-'+id).value = paceFmt;
     if (found.positionGeneral) document.getElementById('t-posnum-'+id).value = found.positionGeneral;
     if (total) document.getElementById('t-postot-'+id).value = total;
+    if (posGen) document.getElementById('t-posgennum-'+id).value = posGen;
+    if (totalGen) document.getElementById('t-posgentot-'+id).value = totalGen;
 
     showFetchMsg(id, 'ok',
       `✓ Encontrado: ${found.name}\n` +
       `  Tiempo: ${timeFmt}  ·  Ritmo: ${paceFmt}/km\n` +
-      `  Pos. general: ${found.positionGeneral} de ${total}`
+      `  Pos. general: ${found.positionGeneral} de ${total}` +
+      (posGen ? `\n  Pos. género: ${posGen}${totalGen ? ' de '+totalGen : ''}` : '')
     );
 
     // Guardar eventId en el store
@@ -1443,17 +1499,16 @@ async function fetchResult(id) {
   }
 }
 
-async function getTotalCount(base, eventId) {
-  // Pide solo 1 resultado para obtener el totalCount real del evento completo
-  const url = `${base}/events/${eventId}/results?distance=5K&page=1&limit=1&orderBy=positionGeneral&order=ASC&search=`;
+async function getTotalCount(base, eventId, dist='5K') {
+  const url = `${base}/events/${eventId}/results?distance=${dist}&page=1&limit=1&orderBy=positionGeneral&order=ASC&search=`;
   const res = await fetch(url);
   if (!res.ok) return null;
   const data = await res.json();
   return data.totalCount || null;
 }
 
-async function searchByBib(base, eventId, bib) {
-  const url = `${base}/events/${eventId}/results?distance=5K&page=1&limit=500&orderBy=positionGeneral&order=ASC&search=${bib}`;
+async function searchByBib(base, eventId, bib, dist='5K') {
+  const url = `${base}/events/${eventId}/results?distance=${dist}&page=1&limit=500&orderBy=positionGeneral&order=ASC&search=${bib}`;
   const res = await fetch(url);
   if (!res.ok) return null;
   const data = await res.json();
@@ -1461,9 +1516,9 @@ async function searchByBib(base, eventId, bib) {
   return found || null;
 }
 
-async function searchByName(base, eventId, name) {
+async function searchByName(base, eventId, name, dist='5K') {
   const search = encodeURIComponent(name.split(' ')[0]);
-  const url = `${base}/events/${eventId}/results?distance=5K&page=1&limit=100&orderBy=positionGeneral&order=ASC&search=${search}`;
+  const url = `${base}/events/${eventId}/results?distance=${dist}&page=1&limit=100&orderBy=positionGeneral&order=ASC&search=${search}`;
   const res = await fetch(url);
   if (!res.ok) return null;
   const data = await res.json();

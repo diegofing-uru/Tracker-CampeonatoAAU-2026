@@ -1503,8 +1503,7 @@ async function fetchResult(id) {
     // Si la API no devuelve el total de género, buscarlo con una llamada extra
     let totalGenFinal = totalGen;
     if (posGen && !totalGenFinal) {
-      const profile = getProfile();
-      const genderParam = (profile.gender === 'F') ? 'F' : 'M';
+      const genderParam = (getProfile().gender === 'F') ? 'F' : 'M';
       totalGenFinal = await getGenderTotal(BASE, eventId, distParam, genderParam);
     }
 
@@ -1536,9 +1535,29 @@ async function fetchResult(id) {
 }
 
 async function getGenderTotal(base, eventId, dist='5K', gender='M') {
-  // Busca el total de corredores del género filtrando por género
-  const url = `${base}/events/${eventId}/results?distance=${dist}&page=1&limit=1&orderBy=positionGeneral&order=ASC&gender=${gender}&search=`;
   try {
+    // Primero obtener las categorías del evento para encontrar el categoryId del género
+    const catUrl = `${base}/events/${eventId}/categories?distance=${dist}`;
+    const catRes = await fetch(catUrl);
+    if (catRes.ok) {
+      const catData = await catRes.json();
+      const categories = catData.categories || catData.results || catData || [];
+      // Buscar la categoría que corresponde al género
+      const genderLabel = gender === 'F' ? ['f','femenino','female','mujer','w'] : ['m','masculino','male','hombre','varones'];
+      const cat = Array.isArray(categories) && categories.find(c => {
+        const name = (c.name || c.label || c.gender || '').toLowerCase();
+        return genderLabel.some(g => name.includes(g));
+      });
+      if (cat && cat.id) {
+        const url = `${base}/events/${eventId}/results?distance=${dist}&eventCategoryId=${cat.id}&page=1&limit=1&orderBy=positionGender&order=ASC&search=`;
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.totalCount || null;
+      }
+    }
+    // Fallback: intentar directamente con parámetro gender
+    const url = `${base}/events/${eventId}/results?distance=${dist}&page=1&limit=1&orderBy=positionGender&order=ASC&gender=${gender}&search=`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();

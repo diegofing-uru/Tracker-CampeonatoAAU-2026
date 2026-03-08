@@ -1557,23 +1557,20 @@ async function fetchResult(id) {
 
 async function getGenderTotal(base, eventId, dist='5K', gender='M') {
   try {
-    // Obtener categorías del evento y buscar la que tiene gender === 'M' o 'F'
     const catUrl = `${base}/events/${eventId}/categories?distance=${dist}`;
     const catRes = await fetch(catUrl);
     if (!catRes.ok) return null;
     const catData = await catRes.json();
-    const categories = catData.categories || [];
-
-    // Buscar categoría por campo gender exacto ('M' o 'F')
-    const cat = categories.find(c => c.gender === gender);
-    if (!cat) return null;
-
-    // Consultar total de esa categoría
-    const url = `${base}/events/${eventId}/results?distance=${dist}&eventCategoryId=${cat.id}&page=1&limit=1&orderBy=positionGender&order=ASC&search=`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.totalCount || null;
+    // Filtrar todas las categorías del género y probar cada una
+    const cats = (catData.categories || []).filter(c => c.gender === gender);
+    for (const cat of cats) {
+      const url = `${base}/events/${eventId}/results?distance=${dist}&eventCategoryId=${cat.id}&page=1&limit=1&orderBy=positionGender&order=ASC&search=`;
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data.totalCount > 0) return data.totalCount;
+    }
+    return null;
   } catch(e) { return null; }
 }
 

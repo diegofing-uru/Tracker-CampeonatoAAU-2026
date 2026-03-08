@@ -1453,7 +1453,10 @@ function saveProfile() {
   const name = document.getElementById('prof-name').value.trim();
   const bib  = document.getElementById('prof-bib').value.trim();
   // Guardar perfil tanto en localStorage como en el store (para sincronizar)
-  localStorage.setItem('camp26profile', JSON.stringify({ name, bib }));
+  const p = JSON.parse(localStorage.getItem('camp26profile') || '{}');
+  p.name = name;
+  p.bib  = bib;
+  localStorage.setItem('camp26profile', JSON.stringify(p));
   if (window._currentUser && window._saveToCloud) {
     // También guardar perfil en Firestore
     const user = window._currentUser;
@@ -1561,16 +1564,26 @@ async function getGenderTotal(base, eventId, dist='5K', gender='M') {
     const catRes = await fetch(catUrl);
     if (!catRes.ok) return null;
     const catData = await catRes.json();
-    // Filtrar todas las categorías del género y probar cada una
     const cats = (catData.categories || []).filter(c => c.gender === gender);
-    for (const cat of cats) {
+    if (!cats.length) return null;
+
+    // Buscar el total de cada categoría del género y quedarse con el mayor (el real)
+    // La categoría "vacía" devuelve 0, la real devuelve el total correcto
+    const totals = await Promise.all(cats.map(async cat => {
       const url = `${base}/events/${eventId}/results?distance=${dist}&eventCategoryId=${cat.id}&page=1&limit=1&orderBy=positionGender&order=ASC&search=`;
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      const data = await res.json();
-      if (data.totalCount > 0) return data.totalCount;
-    }
-    return null;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return 0;
+        const data = await res.json();
+        // Verificar que los resultados realmente son del género correcto
+        const firstResult = (data.results || [])[0];
+        if (firstResult && firstResult.gender === gender) return data.totalCount || 0;
+        return 0;
+      } catch(e) { return 0; }
+    }));
+
+    const best = Math.max(...totals);
+    return best > 0 ? best : null;
   } catch(e) { return null; }
 }
 

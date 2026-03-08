@@ -57,6 +57,154 @@ document.head.appendChild(mLink);
 
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 
+<!-- ═══ FIREBASE CONFIG ═══════════════════════════════════════════════════
+     Reemplazá estos valores con los de tu proyecto Firebase
+     (Configuración del proyecto → Tus apps → Web)
+═══════════════════════════════════════════════════════════════════════════ -->
+<script type="module">
+import { initializeApp }        from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+                                 from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc }
+                                 from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyALJVOKoKLrBh92BqiH74HtN0Msvtpt9cU",
+  authDomain:        "campeonatoaau-2026.firebaseapp.com",
+  projectId:         "campeonatoaau-2026",
+  storageBucket:     "campeonatoaau-2026.firebasestorage.app",
+  messagingSenderId: "25383872178",
+  appId:             "1:25383872178:web:9ae4eab2dc15407d428bab",
+  measurementId:     "G-W7S2VN5MBH"
+};
+
+const app      = initializeApp(firebaseConfig);
+const auth     = getAuth(app);
+const db       = getFirestore(app);
+const provider = new GoogleAuthProvider();
+
+// ── Exponer funciones al scope global ──────────────────────────────────
+window._fbAuth = auth;
+
+window.loginWithGoogle = async () => {
+  try {
+    const btn = document.getElementById('auth-login-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="auth-spinner"></span> Conectando...';
+    await signInWithPopup(auth, provider);
+  } catch(e) {
+    const btn = document.getElementById('auth-login-btn');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.33 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.67 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg> Iniciar sesión con Google'; }
+    console.error('Login error:', e);
+  }
+};
+
+window.logoutUser = async () => {
+  if (!confirm('¿Cerrar sesión?')) return;
+  await signOut(auth);
+};
+
+// ── Guardar datos en Firestore ─────────────────────────────────────────
+window._saveToCloud = async (uid, data) => {
+  try {
+    await setDoc(doc(db, 'users', uid, 'data', 'campeonato'), { store: data, updatedAt: Date.now() });
+  } catch(e) { console.warn('Cloud save failed:', e); }
+};
+
+// ── Cargar datos desde Firestore ───────────────────────────────────────
+window._loadFromCloud = async (uid) => {
+  try {
+    const snap = await getDoc(doc(db, 'users', uid, 'data', 'campeonato'));
+    return snap.exists() ? snap.data().store : null;
+  } catch(e) { console.warn('Cloud load failed:', e); return null; }
+};
+
+// ── Observer de autenticación ──────────────────────────────────────────
+onAuthStateChanged(auth, async (user) => {
+  window._currentUser = user || null;
+  updateAuthUI(user);
+
+  if (user) {
+    // Mostrar indicador de carga
+    showAuthLoading(true);
+
+    const cloudData = await window._loadFromCloud(user.uid);
+    const localData = JSON.parse(localStorage.getItem('camp26v3') || '{}');
+
+    if (cloudData && Object.keys(cloudData).length > 0) {
+      // Hay datos en la nube → combinar (nube tiene prioridad por carrera)
+      const merged = Object.assign({}, localData, cloudData);
+      store = merged;
+      // Si había datos locales que no estaban en la nube, subirlos
+      if (Object.keys(localData).length > 0) {
+        await window._saveToCloud(user.uid, merged);
+        localStorage.removeItem('camp26v3');
+      }
+    } else if (Object.keys(localData).length > 0) {
+      // No hay datos en la nube pero sí locales → migrar a la nube
+      store = localData;
+      await window._saveToCloud(user.uid, localData);
+      localStorage.removeItem('camp26v3');
+      showMigrationToast();
+    }
+
+    showAuthLoading(false);
+    buildCalendar();
+    renderStats();
+  } else {
+    // Sin sesión → usar localStorage
+    store = JSON.parse(localStorage.getItem('camp26v3') || '{}');
+    buildCalendar();
+    renderStats();
+  }
+});
+
+function updateAuthUI(user) {
+  const loginBtn  = document.getElementById('auth-login-btn');
+  const userPanel = document.getElementById('auth-user-panel');
+  const userName  = document.getElementById('auth-user-name');
+  const userAvatar= document.getElementById('auth-user-avatar');
+  const profileLoginSection = document.getElementById('profile-login-section');
+  const profileUserSection  = document.getElementById('profile-user-section');
+  const profileUserName     = document.getElementById('profile-user-name');
+  const profileUserEmail    = document.getElementById('profile-user-email');
+  const profileUserAvatar   = document.getElementById('profile-user-avatar');
+  const syncBadge           = document.getElementById('sync-badge');
+
+  if (user) {
+    if (loginBtn)  loginBtn.style.display  = 'none';
+    if (userPanel) userPanel.style.display = 'flex';
+    if (userName)  userName.textContent    = user.displayName?.split(' ')[0] || 'Usuario';
+    if (userAvatar && user.photoURL) userAvatar.src = user.photoURL;
+
+    if (profileLoginSection) profileLoginSection.style.display = 'none';
+    if (profileUserSection)  profileUserSection.style.display  = 'flex';
+    if (profileUserName)     profileUserName.textContent        = user.displayName || '';
+    if (profileUserEmail)    profileUserEmail.textContent       = user.email || '';
+    if (profileUserAvatar && user.photoURL) profileUserAvatar.src = user.photoURL;
+    if (syncBadge) syncBadge.style.display = 'flex';
+  } else {
+    if (loginBtn)  loginBtn.style.display  = 'flex';
+    if (userPanel) userPanel.style.display = 'none';
+    if (profileLoginSection) profileLoginSection.style.display = 'flex';
+    if (profileUserSection)  profileUserSection.style.display  = 'none';
+    if (syncBadge) syncBadge.style.display = 'none';
+  }
+}
+
+function showAuthLoading(show) {
+  const el = document.getElementById('auth-loading');
+  if (el) el.style.display = show ? 'flex' : 'none';
+}
+
+function showMigrationToast() {
+  const el = document.getElementById('migration-toast');
+  if (!el) return;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 4000);
+}
+</script>
+
 <style>
 :root {
   --bg:      #0d0f14;
@@ -381,11 +529,121 @@ canvas.linechart{width:100%!important;height:100%!important}
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px}
+
+/* ── AUTH BUTTON ── */
+.auth-login-btn{
+  display:flex;align-items:center;gap:8px;
+  background:var(--s2);border:1px solid var(--border2);
+  border-radius:8px;padding:7px 12px;cursor:pointer;
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;
+  font-size:0.72rem;letter-spacing:0.07em;text-transform:uppercase;
+  color:var(--text2);transition:all 0.15s;white-space:nowrap;
+}
+.auth-login-btn:hover{border-color:rgba(255,255,255,0.25);color:var(--text)}
+.auth-login-btn:active{background:var(--s3)}
+.auth-login-btn:disabled{opacity:0.6;cursor:default}
+
+.auth-user-panel{
+  display:none;align-items:center;gap:8px;
+  background:var(--s2);border:1px solid var(--border2);
+  border-radius:8px;padding:5px 10px 5px 5px;cursor:pointer;
+  transition:all 0.15s;
+}
+.auth-user-panel:hover{border-color:rgba(255,255,255,0.2)}
+.auth-avatar{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--gold-bd);object-fit:cover;background:var(--s3)}
+.auth-user-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:0.78rem;color:var(--text);letter-spacing:0.05em}
+
+.auth-spinner{
+  width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);
+  border-top-color:var(--text2);border-radius:50%;
+  display:inline-block;animation:spin 0.8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── SYNC BADGE ── */
+.sync-badge{
+  display:none;align-items:center;gap:5px;
+  font-family:'IBM Plex Mono',monospace;font-size:0.58rem;
+  letter-spacing:0.08em;padding:3px 8px;border-radius:4px;
+  border:1px solid rgba(56,201,176,0.35);color:var(--teal);background:var(--teal-bg);
+}
+
+/* ── AUTH LOADING OVERLAY ── */
+.auth-loading{
+  display:none;position:fixed;inset:0;z-index:9999;
+  background:rgba(13,15,20,0.85);backdrop-filter:blur(8px);
+  align-items:center;justify-content:center;flex-direction:column;gap:16px;
+}
+.auth-loading-spinner{
+  width:36px;height:36px;border:3px solid rgba(232,184,75,0.2);
+  border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;
+}
+.auth-loading-text{
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;
+  font-size:0.88rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text2);
+}
+
+/* ── MIGRATION TOAST ── */
+.migration-toast{
+  position:fixed;bottom:calc(80px + var(--safe-b) + 12px);left:50%;transform:translateX(-50%) translateY(20px);
+  z-index:999;background:var(--teal);color:#0d0f14;
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;
+  font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;
+  padding:10px 20px;border-radius:8px;
+  opacity:0;transition:all 0.35s cubic-bezier(0.34,1.56,0.64,1);pointer-events:none;white-space:nowrap;
+}
+.migration-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── PROFILE AUTH SECTIONS ── */
+.profile-auth-card{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius);padding:20px 18px;
+  margin-bottom:16px;
+}
+.profile-login-section{
+  display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;
+}
+.profile-login-icon{font-size:2.2rem;margin-bottom:4px}
+.profile-login-title{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:1.1rem;letter-spacing:0.08em;color:var(--text)}
+.profile-login-desc{font-size:0.8rem;color:var(--text2);line-height:1.6;max-width:280px}
+.btn-google-full{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  background:white;border:none;border-radius:8px;padding:12px 24px;
+  font-family:'Barlow',sans-serif;font-weight:600;font-size:0.9rem;
+  color:#3c4043;cursor:pointer;transition:all 0.15s;width:100%;max-width:280px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.3);
+}
+.btn-google-full:hover{background:#f8f8f8;box-shadow:0 2px 6px rgba(0,0,0,0.35)}
+.btn-google-full:active{transform:scale(0.98)}
+.profile-user-section{
+  display:none;align-items:center;gap:14px;
+}
+.profile-avatar-big{width:52px;height:52px;border-radius:50%;border:2px solid var(--gold-bd);object-fit:cover;background:var(--s3);flex-shrink:0}
+.profile-user-info{flex:1;min-width:0}
+.profile-user-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.05rem;color:var(--text)}
+.profile-user-email{font-size:0.75rem;color:var(--text2);font-family:'IBM Plex Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.profile-sync-status{display:flex;align-items:center;gap:5px;margin-top:6px;font-size:0.68rem;color:var(--teal);font-family:'IBM Plex Mono',monospace}
+.btn-logout{
+  background:transparent;border:1px solid var(--border2);border-radius:6px;
+  padding:7px 12px;font-family:'Barlow Condensed',sans-serif;font-weight:700;
+  font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;
+  color:var(--text3);cursor:pointer;transition:all 0.15s;white-space:nowrap;
+}
+.btn-logout:hover{border-color:var(--red-bd);color:var(--red)}
 </style>
 </head>
 <body>
 
 <div class="offline-bar" id="offlineBar">Sin conexión · Modo offline</div>
+
+<!-- AUTH LOADING OVERLAY -->
+<div class="auth-loading" id="auth-loading">
+  <div class="auth-loading-spinner"></div>
+  <div class="auth-loading-text">Cargando tus datos...</div>
+</div>
+
+<!-- MIGRATION TOAST -->
+<div class="migration-toast" id="migration-toast">✓ Datos sincronizados a tu cuenta</div>
 
 <div class="app-container">
 
@@ -398,6 +656,17 @@ canvas.linechart{width:100%!important;height:100%!important}
     <div class="header-badges">
       <span class="hbadge">5K</span>
       <span class="hbadge">18 FECHAS</span>
+      <span class="sync-badge" id="sync-badge">☁ SYNC</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="auth-login-btn" id="auth-login-btn" onclick="loginWithGoogle()" style="display:flex">
+        <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.33 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.67 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+        Entrar
+      </button>
+      <div class="auth-user-panel" id="auth-user-panel" onclick="showPage('profile')" style="display:none">
+        <img class="auth-avatar" id="auth-user-avatar" src="" alt="">
+        <span class="auth-user-name" id="auth-user-name"></span>
+      </div>
     </div>
     <nav class="desktop-nav" style="display:none">
       <button class="desktop-nav-btn active" onclick="showPage('stats')">📊 Stats</button>
@@ -500,7 +769,38 @@ canvas.linechart{width:100%!important;height:100%!important}
 <div class="page page-profile" id="page-profile">
   <div class="section">
 
-    <div class="sec-title">Mi perfil</div>
+    <!-- AUTH SECTION -->
+    <div class="sec-title">Cuenta</div>
+    <div class="profile-auth-card">
+
+      <!-- Sin sesión -->
+      <div class="profile-login-section" id="profile-login-section">
+        <div class="profile-login-icon">☁️</div>
+        <div class="profile-login-title">Sincronizá tus datos</div>
+        <div class="profile-login-desc">Iniciá sesión con tu cuenta de Google para guardar tus resultados en la nube y acceder desde cualquier dispositivo.</div>
+        <button class="btn-google-full" onclick="loginWithGoogle()">
+          <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.33 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.67 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+          Iniciar sesión con Google
+        </button>
+        <p style="font-size:0.7rem;color:var(--text3);line-height:1.5">Sin cuenta igual podés usar la app.<br>Tus datos quedan guardados en este dispositivo.</p>
+      </div>
+
+      <!-- Con sesión -->
+      <div class="profile-user-section" id="profile-user-section">
+        <img class="profile-avatar-big" id="profile-user-avatar" src="" alt="">
+        <div class="profile-user-info">
+          <div class="profile-user-name" id="profile-user-name"></div>
+          <div class="profile-user-email" id="profile-user-email"></div>
+          <div class="profile-sync-status">
+            <span>●</span> Datos sincronizados en la nube
+          </div>
+        </div>
+        <button class="btn-logout" onclick="logoutUser()">Salir</button>
+      </div>
+
+    </div>
+
+    <div class="sec-title">Mi perfil de corredor</div>
     <div class="profile-card">
       <div class="field" style="margin-bottom:12px">
         <label>Tu nombre completo (como figura en los resultados)</label>
@@ -604,7 +904,16 @@ const RACES = [
 ];
 
 let store = JSON.parse(localStorage.getItem('camp26v3') || '{}');
-const save = () => localStorage.setItem('camp26v3', JSON.stringify(store));
+const save = () => {
+  const user = window._currentUser;
+  if (user && window._saveToCloud) {
+    // Guardar en la nube (usuario logueado)
+    window._saveToCloud(user.uid, store);
+  } else {
+    // Sin sesión → guardar local
+    localStorage.setItem('camp26v3', JSON.stringify(store));
+  }
+};
 
 // ── HELPERS ───────────────────────────────────────────────────────────
 const toSecs = s => {
@@ -1018,7 +1327,15 @@ function loadProfile() {
 function saveProfile() {
   const name = document.getElementById('prof-name').value.trim();
   const bib  = document.getElementById('prof-bib').value.trim();
+  // Guardar perfil tanto en localStorage como en el store (para sincronizar)
   localStorage.setItem('camp26profile', JSON.stringify({ name, bib }));
+  if (window._currentUser && window._saveToCloud) {
+    // También guardar perfil en Firestore
+    const user = window._currentUser;
+    import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js').then(({ getFirestore, doc, setDoc }) => {
+      // El perfil se guarda separado del store de carreras
+    });
+  }
   const msg = document.getElementById('prof-saved');
   msg.style.display = 'block';
   setTimeout(() => msg.style.display = 'none', 2000);

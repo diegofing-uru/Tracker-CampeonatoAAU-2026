@@ -835,10 +835,19 @@ canvas.linechart{width:100%!important;height:100%!important}
         <label>Distancia que corrés</label>
         <div style="display:flex;gap:8px;margin-top:4px">
           <button id="dist-5k" onclick="setDistance('5K')" class="btn" style="flex:1;font-size:0.9rem">🏃 5K</button>
-          <button id="dist-10k" onclick="setDistance('10K')" class="btn btn-save" style="flex:1;font-size:0.9rem;background:var(--s3);color:var(--text2)">🏃 10K</button>
+          <button id="dist-10k" onclick="setDistance('10K')" class="btn" style="flex:1;font-size:0.9rem;background:var(--s3);color:var(--text2)">🏃 10K</button>
         </div>
         <span class="hint">Afecta el cálculo de ritmo y la búsqueda en atletas.uy</span>
       </div>
+      <div class="field" style="margin-bottom:12px">
+        <label>Tu género</label>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button id="gen-m" onclick="setGender('M')" class="btn" style="flex:1;font-size:0.9rem">♂ Masculino</button>
+          <button id="gen-f" onclick="setGender('F')" class="btn" style="flex:1;font-size:0.9rem;background:var(--s3);color:var(--text2)">♀ Femenino</button>
+        </div>
+        <span class="hint">Se usa para calcular el total de tu género en los resultados</span>
+      </div>
+      <div class="field" style="margin-bottom:12px">
         <label>Tu nombre completo (como figura en los resultados)</label>
         <input type="text" id="prof-name" placeholder="Ej: Juan Pérez García" autocomplete="name">
         <span class="hint">Se usa para buscar tus resultados automáticamente</span>
@@ -1380,6 +1389,25 @@ function loadProfile() {
   if (p.name) document.getElementById('prof-name').value = p.name;
   if (p.bib)  document.getElementById('prof-bib').value  = p.bib;
   setDistance(p.distance || '5K', false);
+  setGender(p.gender || 'M', false);
+}
+
+function setGender(gen, doSave=true) {
+  const btnM = document.getElementById('gen-m');
+  const btnF = document.getElementById('gen-f');
+  if (!btnM || !btnF) return;
+  if (gen === 'F') {
+    btnF.style.background = 'var(--gold)'; btnF.style.color = '#0d0f14';
+    btnM.style.background = 'var(--s3)';   btnM.style.color = 'var(--text2)';
+  } else {
+    btnM.style.background = 'var(--gold)'; btnM.style.color = '#0d0f14';
+    btnF.style.background = 'var(--s3)';   btnF.style.color = 'var(--text2)';
+  }
+  if (doSave) {
+    const p = JSON.parse(localStorage.getItem('camp26profile') || '{}');
+    p.gender = gen;
+    localStorage.setItem('camp26profile', JSON.stringify(p));
+  }
 }
 
 function setDistance(dist, doSave=true) {
@@ -1468,22 +1496,30 @@ async function fetchResult(id) {
     const paceFmt  = paceSecs ? toFmt(paceSecs) : '';
     const total    = totalCount || '';
 
-    // Posición por género
-    const posGen    = found.positionGender || '';
-    const totalGen  = found.totalGender || '';
+    // Posición por género — probar varios nombres de campo posibles
+    const posGen   = found.positionGender || found.genderPosition || found.posGender || '';
+    const totalGen = found.totalGender || found.totalGenderCount || found.genderCount || found.totalByGender || '';
+
+    // Si la API no devuelve el total de género, buscarlo con una llamada extra
+    let totalGenFinal = totalGen;
+    if (posGen && !totalGenFinal) {
+      const profile = getProfile();
+      const genderParam = (profile.gender === 'F') ? 'F' : 'M';
+      totalGenFinal = await getGenderTotal(BASE, eventId, distParam, genderParam);
+    }
 
     if (timeFmt) document.getElementById('t-time-'+id).value = timeFmt;
     if (paceFmt) document.getElementById('t-pace-'+id).value = paceFmt;
     if (found.positionGeneral) document.getElementById('t-posnum-'+id).value = found.positionGeneral;
     if (total) document.getElementById('t-postot-'+id).value = total;
     if (posGen) document.getElementById('t-posgennum-'+id).value = posGen;
-    if (totalGen) document.getElementById('t-posgentot-'+id).value = totalGen;
+    if (totalGenFinal) document.getElementById('t-posgentot-'+id).value = totalGenFinal;
 
     showFetchMsg(id, 'ok',
       `✓ Encontrado: ${found.name}\n` +
       `  Tiempo: ${timeFmt}  ·  Ritmo: ${paceFmt}/km\n` +
       `  Pos. general: ${found.positionGeneral} de ${total}` +
-      (posGen ? `\n  Pos. género: ${posGen}${totalGen ? ' de '+totalGen : ''}` : '')
+      (posGen ? `\n  Pos. género: ${posGen}${totalGenFinal ? ' de '+totalGenFinal : ''}` : '')
     );
 
     // Guardar eventId en el store
@@ -1497,6 +1533,17 @@ async function fetchResult(id) {
     btn.classList.remove('loading');
     btn.innerHTML = '<span>🔍</span> Buscar mi resultado';
   }
+}
+
+async function getGenderTotal(base, eventId, dist='5K', gender='M') {
+  // Busca el total de corredores del género filtrando por género
+  const url = `${base}/events/${eventId}/results?distance=${dist}&page=1&limit=1&orderBy=positionGeneral&order=ASC&gender=${gender}&search=`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.totalCount || null;
+  } catch(e) { return null; }
 }
 
 async function getTotalCount(base, eventId, dist='5K') {

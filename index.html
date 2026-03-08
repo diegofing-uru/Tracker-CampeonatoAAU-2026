@@ -528,10 +528,11 @@ canvas.linechart{width:100%!important;height:100%!important}
 
 /* ── RESPONSIVE ── */
 @media(min-width:480px){
-  .stats-grid{grid-template-columns:repeat(4,1fr)}
+  .stats-grid{grid-template-columns:repeat(3,1fr)}
   .stat-tile .val{font-size:2rem}
 }
 @media(min-width:640px){
+  .stats-grid{grid-template-columns:repeat(5,1fr)}
   .app-container{max-width:640px;margin:0 auto}
   body{padding-bottom:calc(80px + var(--safe-b))}
 }
@@ -743,6 +744,11 @@ canvas.linechart{width:100%!important;height:100%!important}
         <div class="lbl">Mejor pos.</div>
         <div class="val" id="s-pos">—</div>
         <div class="sub" id="s-pos-sub">—</div>
+      </div>
+      <div class="stat-tile">
+        <div class="lbl">Mejor pos. ♀♂</div>
+        <div class="val" id="s-pos-gen">—</div>
+        <div class="sub" id="s-pos-gen-sub">—</div>
       </div>
     </div>
 
@@ -1316,6 +1322,21 @@ function renderStats() {
     document.getElementById('s-pos-sub').textContent = '—';
   }
 
+  // Mejor posición por género
+  const positionsGen = done.map(r => {
+    const d = store[r.id];
+    if (d.posGenNum && d.posGenTotal) return {ratio: parseInt(d.posGenNum)/parseInt(d.posGenTotal), num:d.posGenNum, tot:d.posGenTotal};
+    return null;
+  }).filter(Boolean).sort((a,b) => a.ratio-b.ratio);
+
+  if (positionsGen.length) {
+    document.getElementById('s-pos-gen').textContent = positionsGen[0].num;
+    document.getElementById('s-pos-gen-sub').textContent = `de ${positionsGen[0].tot}`;
+  } else {
+    document.getElementById('s-pos-gen').textContent = '—';
+    document.getElementById('s-pos-gen-sub').textContent = '—';
+  }
+
   // Progress dots
   document.getElementById('prog-count').textContent = `${done.length} / ${RACES.filter(r=>!r.out).length}`;
   document.getElementById('prog-fill').style.width = `${(done.length / RACES.filter(r=>!r.out).length) * 100}%`;
@@ -1536,28 +1557,19 @@ async function fetchResult(id) {
 
 async function getGenderTotal(base, eventId, dist='5K', gender='M') {
   try {
-    // Primero obtener las categorías del evento para encontrar el categoryId del género
+    // Obtener categorías del evento y buscar la que tiene gender === 'M' o 'F'
     const catUrl = `${base}/events/${eventId}/categories?distance=${dist}`;
     const catRes = await fetch(catUrl);
-    if (catRes.ok) {
-      const catData = await catRes.json();
-      const categories = catData.categories || catData.results || catData || [];
-      // Buscar la categoría que corresponde al género
-      const genderLabel = gender === 'F' ? ['f','femenino','female','mujer','w'] : ['m','masculino','male','hombre','varones'];
-      const cat = Array.isArray(categories) && categories.find(c => {
-        const name = (c.name || c.label || c.gender || '').toLowerCase();
-        return genderLabel.some(g => name.includes(g));
-      });
-      if (cat && cat.id) {
-        const url = `${base}/events/${eventId}/results?distance=${dist}&eventCategoryId=${cat.id}&page=1&limit=1&orderBy=positionGender&order=ASC&search=`;
-        const res = await fetch(url);
-        if (!res.ok) return null;
-        const data = await res.json();
-        return data.totalCount || null;
-      }
-    }
-    // Fallback: intentar directamente con parámetro gender
-    const url = `${base}/events/${eventId}/results?distance=${dist}&page=1&limit=1&orderBy=positionGender&order=ASC&gender=${gender}&search=`;
+    if (!catRes.ok) return null;
+    const catData = await catRes.json();
+    const categories = catData.categories || [];
+
+    // Buscar categoría por campo gender exacto ('M' o 'F')
+    const cat = categories.find(c => c.gender === gender);
+    if (!cat) return null;
+
+    // Consultar total de esa categoría
+    const url = `${base}/events/${eventId}/results?distance=${dist}&eventCategoryId=${cat.id}&page=1&limit=1&orderBy=positionGender&order=ASC&search=`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
